@@ -623,21 +623,12 @@
         });
     }
 
-    // ★ 서버 데이터 불러오기 기능 (기존 입력값 유실 방어 로직 적용) ★
+    // ★ 서버 데이터 불러오기 기능 (근무자 강제 초기화 방어 로직 적용) ★
     function loadSavedDataFromServer() {
         const workDate = document.getElementById("work-date").value;
         if (!workDate) return;
 
-        // 1. 초기화 작업 수행
-        const workerRows = document.querySelectorAll(".worker-row");
-        workerRows.forEach((row, idx) => {
-            row.querySelector(".w-name").value = (idx === 0) ? "이욱호" : "";
-            row.querySelector(".w-jugan").value = (idx === 0) ? "주간" : "";
-            row.querySelector(".w-yagan").value = "";
-            row.querySelector(".w-humu").value = "";
-            row.querySelector(".w-gita").value = "";
-        });
-
+        // 1. 화면 내용 초기화 (근무자는 서버 데이터가 없을 때만 기본값 유지)
         const textarea = document.getElementById("work-log-content");
         if (textarea) {
             textarea.value = "";
@@ -661,6 +652,8 @@
         fetch(`${GAS_WEB_APP_URL}?workDate=${workDate}`)
         .then(res => res.json())
         .then(res => {
+            const workerRows = document.querySelectorAll(".worker-row");
+
             if (res.status === "success" && res.data && res.data["naengdong"]) {
                 const teamData = res.data["naengdong"];
                 const data = teamData.contentData;
@@ -709,19 +702,31 @@
                     });
                 }
 
-                // 서버에 저장된 근무자 데이터가 있으면 정상적으로 매핑
+                // 🛡️ [방어 로직] 서버에 저장된 근무자 데이터가 실제로 존재할 때만 덮어쓰기 수행
                 if (data.workers && Array.isArray(data.workers) && data.workers.length > 0) {
-                    const rows = document.querySelectorAll(".worker-row");
-                    rows.forEach((row, idx) => {
-                        if (data.workers[idx]) {
-                            row.querySelector(".w-name").value = data.workers[idx].name || "";
-                            row.querySelector(".w-jugan").value = data.workers[idx].jugan || "";
-                            row.querySelector(".w-yagan").value = data.workers[idx].yagan || "";
-                            row.querySelector(".w-humu").value = data.workers[idx].humu || "";
-                            row.querySelector(".w-gita").value = data.workers[idx].gita || "";
-                        }
-                    });
+                    const hasValidWorker = data.workers.some(w => (w.name && w.name !== "") || w.jugan || w.yagan || w.humu || w.gita);
+                    
+                    if (hasValidWorker) {
+                        workerRows.forEach((row, idx) => {
+                            if (data.workers[idx]) {
+                                row.querySelector(".w-name").value = data.workers[idx].name || "";
+                                row.querySelector(".w-jugan").value = data.workers[idx].jugan || "";
+                                row.querySelector(".w-yagan").value = data.workers[idx].yagan || "";
+                                row.querySelector(".w-humu").value = data.workers[idx].humu || "";
+                                row.querySelector(".w-gita").value = data.workers[idx].gita || "";
+                            }
+                        });
+                    }
                 }
+            } else {
+                // 서버에 데이터가 아예 없을 경우에만 기본 초기화 적용
+                workerRows.forEach((row, idx) => {
+                    row.querySelector(".w-name").value = (idx === 0) ? "이욱호" : "";
+                    row.querySelector(".w-jugan").value = (idx === 0) ? "주간" : "";
+                    row.querySelector(".w-yagan").value = "";
+                    row.querySelector(".w-humu").value = "";
+                    row.querySelector(".w-gita").value = "";
+                });
             }
         })
         .catch(err => {
